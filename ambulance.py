@@ -21,6 +21,7 @@ class Ambulance:
         self.y = y
         self.time = 0
         self.cargo = []
+        self.timeleft = float('Inf')
 
     def move(self,destx,desty):
         self.time += abs(x - destx) + abs(y - desty)
@@ -44,12 +45,14 @@ class Patient:
     def __cmp__(self, p):
         return (abs(self.x - p.x) + abs(self.y - p.y))
 
-    def score(self,x,y,thres,time):
+    def score(self,x,y,thres,time,timeleft):
         d = abs(x - self.x) + abs(y - self.y)
-        if d > thres or time > ttl:
+        # too far away or already dead or going to die in ambulance
+        if d > thres or time > ttl or timeleft < (ttl-time):
             self.scored = 10000
         else:
-            self.scored = (ttl-time)+d
+            self.scored = (ttl-time) + d
+            print "Person's %s score is %s" % (repr(self.num),repr(self.scored))
         return self.scored
 
 class Hospital:
@@ -121,12 +124,15 @@ if __name__ == "__main__":
         for i in range(0,h.ambulances):
             ambulances.append(Ambulance(h.x,h.y))
 
+    thres = 100 # maximum manhattan distance to search for patients
     for a in ambulances:
         while len(a.cargo) < 4: # load each ambulance all the way
+            # estimate the maximum time remaining
+            a.timeleft = (len(a.cargo)+1)*10 + 4 
             mini = 10000
             low_patient = patients[0]
             for p in patients:
-                p.score(a.x,a.y,5,a.time) # threshold of 5 blocks
+                p.score(a.x,a.y,thres,a.time,a.timeleft) 
                 if p.scored < mini:
                     mini = p.scored
                     low_patient = p
@@ -149,6 +155,7 @@ if __name__ == "__main__":
                 print "Saved %s at %s. %s saved." % (repr(r.num),repr(a.time),repr(total_saved))
             else:
                 print "Lost %s at %s." % (repr(r.num),repr(a.time))
-            
+    
     print "Time : ", round(time.time() - start_time,2)
     print "Total saved: ",total_saved
+    print "Patients remaining: ",len(patients)
