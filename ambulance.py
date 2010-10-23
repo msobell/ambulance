@@ -1,13 +1,15 @@
 #! /usr/bin/env python
 """
-Handles gathers -- checks into location number n
+Solves the ambulance problem
 """
 
 import sys
 import os
 from numpy import array
 from scipy.cluster.vq import vq, kmeans, whiten
+import time
 
+start_time = time.time()
 
 def usage():
     sys.stdout.write( __doc__ % os.path.basename(sys.argv[0]))
@@ -38,6 +40,13 @@ class Patient:
 
     def __cmp__(self, p):
         return (abs(self.x - p.x) + abs(self.y - p.y))
+
+    def score(self,x,y,thres):
+        d = abs(x - self.x) + abs(y - self.y)
+        if d > thres:
+            return -1
+        else:
+            return ttl*d
 
 class Hospital:
     def __init__(self,num,x,y):
@@ -100,5 +109,20 @@ if __name__ == "__main__":
         h.ambulances = ambulance_numbers[0]
         ambulance_numbers.remove(ambulance_numbers[0])
 
+    ambulances = []
+
+    # get all the ambulances started
     for h in hospitals:
         print h
+        for i in range(0,h.ambulances):
+            ambulances.append(Ambulance(h.x,h.y))
+
+    for a in ambulances:
+        count = 0
+        for p in patient:
+            p.score(a.x,a.y,5) # threshold of 5 blocks
+        while count < 4:
+            
+            
+    print "Time : ", round(time.time() - start_time,2)
+
