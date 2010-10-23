@@ -47,10 +47,10 @@ class Patient:
     def score(self,x,y,thres,time):
         d = abs(x - self.x) + abs(y - self.y)
         if d > thres or time > ttl:
-            self.score = 10000
+            self.scored = 10000
         else:
-            self.score = (ttl-time)+d
-        return self.score
+            self.scored = (ttl-time)+d
+        return self.scored
 
 class Hospital:
     def __init__(self,num,x,y):
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     for a in ambulances:
         while len(a.cargo) < 4: # load each ambulance all the way
             mini = 10000
-            low_patient = patient[0]
+            low_patient = patients[0]
             for p in patients:
                 p.score(a.x,a.y,5,a.time) # threshold of 5 blocks
                 if p.scored < mini:
@@ -134,7 +134,7 @@ if __name__ == "__main__":
             patients.remove(low_patient) # remove the patient from the street
             a.cargo.append(low_patient) # add him/her to the ambulance
             a.time += 1 # takes 1 minute to load the patient
-        closest_hospital = h[0]
+        closest_hospital = hospitals[0]
         mini = 1000
         for h in hospitals:
             d = abs(h.x - a.x) + abs(h.y - a.y)
@@ -151,4 +151,4 @@ if __name__ == "__main__":
                 print "Lost %s at %s." % (repr(r.num),repr(a.time))
             
     print "Time : ", round(time.time() - start_time,2)
-
+    print "Total saved: ",total_saved
