@@ -125,10 +125,24 @@ if __name__ == "__main__":
             ambulances.append(Ambulance(h.x,h.y))
 
     thres = 100 # maximum manhattan distance to search for patients
+
+    for p in patients:
+        closest_hospital = hospitals[0]
+        mini = 10000
+        for h in hospitals:
+            d = abs(h.x - p.x) + abs(h.y - p.y)
+            if d < mini:
+                mini = d
+                closest_hospital = h
+        d = abs(closest_hospital.x - p.x) + abs(closest_hospital.y - p.y)
+        if p.ttl < (d + 2): # load and unload = 2 mins
+            patients.remove(p)
+            print "%s is unsaveable." % (repr(p))
+
     for a in ambulances:
         while len(a.cargo) < 4: # load each ambulance all the way
             # estimate the maximum time remaining
-            a.timeleft = (len(a.cargo)+1)*10 + 4 
+            a.timeleft = (len(a.cargo)+1)*10 + 4
             mini = 10000
             low_patient = patients[0]
             for p in patients:
