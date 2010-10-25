@@ -16,15 +16,22 @@ def usage():
     sys.stdout.write( __doc__ % os.path.basename(sys.argv[0]))
 
 class Ambulance:
-    def __init__(self,x,y):
+    def __init__(self,n,x,y):
+        self.n = n
         self.x = x
         self.y = y
         self.time = 0
         self.cargo = []
         self.timeleft = float('Inf')
 
+    def __repr__(self):
+        return ("Ambulance %s at %s, %s. Time = %s") % (repr(self.n),repr(self.x),repr(self.y),repr(self.time))
+
     def move(self,destx,desty):
-        self.time += abs(x - destx) + abs(y - desty)
+        print "time before: ",self.time
+        print "x: %s, y: %s || destx: %s, desty: %s" % (self.x,self.y,destx,desty)
+        self.time += abs(destx - self.x) + abs(desty - self.y)
+        print "time after: ",self.time
         self.x = destx
         self.y = desty
 
@@ -45,7 +52,7 @@ class Ambulance:
             d = abs(p.x - self.x) + abs(p.y - self.y)
             if d < mini:
                 mini = d
-                clostest_patient = p
+                closest_patient = p
         return closest_patient, mini
 
 
@@ -141,9 +148,11 @@ if __name__ == "__main__":
 
     # get all the ambulances started
     for h in hospitals:
-        print h
+        print h.ambulances
         for i in range(0,h.ambulances):
-            ambulances.append(Ambulance(h.x,h.y))
+            ambulances.append(Ambulance(i,h.x,h.y))
+
+    print "Total ambulances: ",len(ambulances)
 
     thres = 20 # maximum manhattan distance to search for patients
 
@@ -160,26 +169,35 @@ if __name__ == "__main__":
             patients.remove(p)
             print "%s is unsaveable." % (repr(p))
 
+    avg_ttl = 0
+    for p in patients:
+        avg_ttl += p.ttl
+    avg_ttl /= len(patients)
+    print "Average time to live: ",avg_ttl
+
     for a in ambulances:
-        while len(a.cargo) < 4: # load each ambulance all the way
-            # estimate the maximum time remaining
+        # estimate the maximum time remaining
+        while len(a.cargo) < 4 and a.time < avg_ttl/2:
             a.timeleft = min([p.ttl for p in patients]) + 1
             # distance to closest hospital (also time to get there)
-            h = a.find_closest_hospital()[1]
-            if h > a.timeleft + 50: # 20 is arbitrary
-                low_patient = find_closest_patient[1]
-            else:
-                mini = 10000
-                low_patient = patients[0]
-                for p in patients:
-                    p.score(a.x,a.y,thres,a.time,a.timeleft) 
-                    if p.scored < mini:
-                        mini = p.scored
-                        low_patient = p
+            # h = a.find_closest_hospital()[1]
+            # if h > a.timeleft + 50: # 20 is arbitrary
+            low_patient = a.find_closest_patient()
+            print "Distance to closest patient: ",low_patient[1]
+            low_patient = low_patient[0]
+            # else:
+            #     mini = 10000
+            #     low_patient = patients[0]
+            #     for p in patients:
+            #         p.score(a.x,a.y,thres,a.time,a.timeleft) 
+            #         if p.scored < mini:
+            #             mini = p.scored
+            #             low_patient = p
             a.move(low_patient.x,low_patient.y) # move the ambulance to the person
             patients.remove(low_patient) # remove the patient from the street
             a.cargo.append(low_patient) # add him/her to the ambulance
             a.time += 1 # takes 1 minute to load the patient
+            print a,a.time
         h = a.find_closest_hospital()[0]
         a.move(h.x,h.y)
         a.time += 1 # unload all patients
