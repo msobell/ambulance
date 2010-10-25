@@ -28,10 +28,10 @@ class Ambulance:
         return ("Ambulance %s at %s, %s. Time = %s") % (repr(self.n),repr(self.x),repr(self.y),repr(self.time))
 
     def move(self,destx,desty):
-        print "time before: ",self.time
-        print "x: %s, y: %s || destx: %s, desty: %s" % (self.x,self.y,destx,desty)
+        # print "time before: ",self.time
+        # print "x: %s, y: %s || destx: %s, desty: %s" % (self.x,self.y,destx,desty)
         self.time += abs(destx - self.x) + abs(desty - self.y)
-        print "time after: ",self.time
+        # print "time after: ",self.time
         self.x = destx
         self.y = desty
 
@@ -49,10 +49,11 @@ class Ambulance:
         closest_patient = patients[0]
         mini = 10000
         for p in patients:
-            d = abs(p.x - self.x) + abs(p.y - self.y)
-            if d < mini:
-                mini = d
-                closest_patient = p
+            if not p.in_ambulance:
+                d = abs(p.x - self.x) + abs(p.y - self.y)
+                if d < mini:
+                    mini = d
+                    closest_patient = p
         return closest_patient, mini
 
 
@@ -64,9 +65,10 @@ class Patient:
         self.ttl = ttl
         self.hospital = None
         self.scored = 10000
+        self.in_ambulance = False
 
     def __repr__(self):
-        return (("Patient %s at %s, %s. %s to live") %\
+        return (("%s (%s,%s,%s)") %\
             (repr(self.num),repr(self.x),repr(self.y),\
                  repr(self.ttl)))
 
@@ -145,12 +147,13 @@ if __name__ == "__main__":
         ambulance_numbers.remove(ambulance_numbers[0])
 
     ambulances = []
-
+    amb_counter = 0
     # get all the ambulances started
     for h in hospitals:
         print h.ambulances
         for i in range(0,h.ambulances):
-            ambulances.append(Ambulance(i,h.x,h.y))
+            ambulances.append(Ambulance(amb_counter,h.x,h.y))
+            amb_counter += 1
 
     print "Total ambulances: ",len(ambulances)
 
@@ -175,38 +178,64 @@ if __name__ == "__main__":
     avg_ttl /= len(patients)
     print "Average time to live: ",avg_ttl
 
-    for a in ambulances:
-        # estimate the maximum time remaining
-        while len(a.cargo) < 4 and a.time < avg_ttl/2:
-            a.timeleft = min([p.ttl for p in patients]) + 1
-            # distance to closest hospital (also time to get there)
-            # h = a.find_closest_hospital()[1]
-            # if h > a.timeleft + 50: # 20 is arbitrary
-            low_patient = a.find_closest_patient()
-            print "Distance to closest patient: ",low_patient[1]
-            low_patient = low_patient[0]
-            # else:
-            #     mini = 10000
-            #     low_patient = patients[0]
-            #     for p in patients:
-            #         p.score(a.x,a.y,thres,a.time,a.timeleft) 
-            #         if p.scored < mini:
-            #             mini = p.scored
-            #             low_patient = p
-            a.move(low_patient.x,low_patient.y) # move the ambulance to the person
-            patients.remove(low_patient) # remove the patient from the street
-            a.cargo.append(low_patient) # add him/her to the ambulance
-            a.time += 1 # takes 1 minute to load the patient
-            print a,a.time
-        h = a.find_closest_hospital()[0]
-        a.move(h.x,h.y)
-        a.time += 1 # unload all patients
-        for r in a.cargo:
-            if r.ttl > a.time:
-                total_saved += 1
-                print "Saved %s at %s. %s saved." % (repr(r.num),repr(a.time),repr(total_saved))
-            else:
-                print "Lost %s at %s." % (repr(r.num),repr(a.time))
+    while len(patients) > 0:
+        for a in ambulances:
+            first = True
+            # estimate the maximum time remaining
+            hosp_dist = a.find_closest_hospital()[1]
+            while len(patients) > 0 and len(a.cargo) < 4 and (min([p.ttl for p in patients]) + 1) > hosp_dist:
+                a.timeleft = min([p.ttl for p in patients]) + 1
+                hosp_dist = a.find_closest_hospital()[1]
+                # distance to closest hospital (also time to get there)
+                # h = a.find_closest_hospital()[1]
+                # if h > a.timeleft + 50: # 20 is arbitrary
+                low_patient = a.find_closest_patient()
+                # print "Distance to closest patient: ",low_patient[1]
+                low_patient = low_patient[0]
+                # else:
+                #     mini = 10000
+                #     low_patient = patients[0]
+                #     for p in patients:
+                #         p.score(a.x,a.y,thres,a.time,a.timeleft) 
+                #         if p.scored < mini:
+                #             mini = p.scored
+                #             low_patient = p
+                a.move(low_patient.x,low_patient.y) # move the ambulance to the person
+                patients.remove(low_patient) # remove the patient from the street
+                # print "%s patients left" % (repr(len(patients)))
+                low_patient.in_ambulance = True # dibbs!
+                a.cargo.append(low_patient) # add him/her to the ambulance
+                if first:
+                    print "Ambulance",a.n, # Ambulance X 
+                    first = False
+                print low_patient,
+                a.time += 1 # takes 1 minute to load the patient
+                # print a,a.time
+            h = a.find_closest_hospital()[0]
+            a.move(h.x,h.y)
+            a.time += 1 # unload all patients
+            if len(a.cargo) > 0:
+                print "\nAmbulance %s (%s,%s)" % (repr(a.n),repr(a.x),repr(a.y)) # Ambulance X 
+            for r in a.cargo:
+                if r.ttl > a.time:
+                    total_saved += 1
+            a.cargo = []
+#                    print "Saved %s at %s. %s saved." % (repr(r.num),repr(a.time),repr(total_saved))
+#                else:
+#                    print "Lost %s at %s." % (repr(r.num),repr(a.time))
+
+        # find dead patients
+        for p in patients:
+            alive = False # assume dead :'(
+            for a in ambulances:
+                rescue_time = a.time + abs(p.x - a.x) + abs(p.y - a.y)
+                if rescue_time < p.ttl:
+                    alive = True
+                    break
+            if not alive:
+                patients.remove(p)
+                print "%s is unsaveable." % (repr(p))
+        
     
     print "Time : ", round(time.time() - start_time,2)
     print "Total saved: ",total_saved
