@@ -28,6 +28,27 @@ class Ambulance:
         self.x = destx
         self.y = desty
 
+    def find_closest_hospital(self):
+        closest_hospital = hospitals[0]
+        mini = 10000
+        for h in hospitals:
+            d = abs(h.x - self.x) + abs(h.y - self.y)
+            if d < mini:
+                mini = d
+                closest_hospital = h
+        return closest_hospital, mini
+
+    def find_closest_patient(self):
+        closest_patient = patients[0]
+        mini = 10000
+        for p in patients:
+            d = abs(p.x - self.x) + abs(p.y - self.y)
+            if d < mini:
+                mini = d
+                clostest_patient = p
+        return closest_patient, mini
+
+
 class Patient:
     def __init__(self,num,x,y,ttl):
         self.num = num
@@ -124,7 +145,7 @@ if __name__ == "__main__":
         for i in range(0,h.ambulances):
             ambulances.append(Ambulance(h.x,h.y))
 
-    thres = 100 # maximum manhattan distance to search for patients
+    thres = 20 # maximum manhattan distance to search for patients
 
     for p in patients:
         closest_hospital = hospitals[0]
@@ -142,25 +163,24 @@ if __name__ == "__main__":
     for a in ambulances:
         while len(a.cargo) < 4: # load each ambulance all the way
             # estimate the maximum time remaining
-            a.timeleft = (len(a.cargo)+1)*10 + 4
-            mini = 10000
-            low_patient = patients[0]
-            for p in patients:
-                p.score(a.x,a.y,thres,a.time,a.timeleft) 
-                if p.scored < mini:
-                    mini = p.scored
-                    low_patient = p
+            a.timeleft = min([p.ttl for p in patients]) + 1
+            # distance to closest hospital (also time to get there)
+            h = a.find_closest_hospital()[1]
+            if h > a.timeleft + 50: # 20 is arbitrary
+                low_patient = find_closest_patient[1]
+            else:
+                mini = 10000
+                low_patient = patients[0]
+                for p in patients:
+                    p.score(a.x,a.y,thres,a.time,a.timeleft) 
+                    if p.scored < mini:
+                        mini = p.scored
+                        low_patient = p
             a.move(low_patient.x,low_patient.y) # move the ambulance to the person
             patients.remove(low_patient) # remove the patient from the street
             a.cargo.append(low_patient) # add him/her to the ambulance
             a.time += 1 # takes 1 minute to load the patient
-        closest_hospital = hospitals[0]
-        mini = 1000
-        for h in hospitals:
-            d = abs(h.x - a.x) + abs(h.y - a.y)
-            if d < mini:
-                mini = d
-                closest_hospital = h
+        h = a.find_closest_hospital()[0]
         a.move(h.x,h.y)
         a.time += 1 # unload all patients
         for r in a.cargo:
