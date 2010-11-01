@@ -8,6 +8,7 @@ import os
 from numpy import array
 from scipy.cluster.vq import vq, kmeans, whiten
 import time
+import random
 
 start_time = time.time()
 total_saved = 0
@@ -46,18 +47,43 @@ class Ambulance:
                 closest_hospital = h
         return closest_hospital, mini
 
+    def score(self,p):
+        d = abs(p.x - self.x) + abs(p.y - self.y)
+        dth = p.find_closest_hospital()[1]
+        t = p.ttl - self.time
+        thres = 20
+        if t > thres:
+            p.score = d*5/(t-thres)
+        else:
+            p.score = float('Inf')
+        if len(self.cargo) > 3:
+             p.score += 4*dth
+        return p.score
+
+    # def find_closest_patient(self):
+    #     closest_patient = patients[0]
+    #     mini = 10000
+    #     for p in patients:
+    #         if not p.in_ambulance:
+    #             d = abs(p.x - self.x) + abs(p.y - self.y)
+    #             t = p.ttl - self.time # time left to live
+    #             if d < mini and t > 0:
+    #                 mini = d
+    #                 closest_patient = p
+    #     return closest_patient, mini
+
     def find_closest_patient(self):
         closest_patient = patients[0]
         mini = 10000
         for p in patients:
             if not p.in_ambulance:
-                d = abs(p.x - self.x) + abs(p.y - self.y)
+                d = self.score(p)
                 t = p.ttl - self.time # time left to live
+                # dont pick up dead dudes
                 if d < mini and t > 0:
                     mini = d
                     closest_patient = p
-        return closest_patient, mini
-
+        return closest_patient,mini,sorted(patients, key=lambda Patient: Patient.score)
 
 class Patient:
     def __init__(self,num,x,y,ttl):
@@ -87,6 +113,16 @@ class Patient:
             print "Person's %s score is %s" % (repr(self.num),repr(self.scored))
         return self.scored
 
+    def find_closest_hospital(self):
+        closest_hospital = hospitals[0]
+        mini = 10000
+        for h in hospitals:
+            d = abs(h.x - self.x) + abs(h.y - self.y)
+            if d < mini:
+                mini = d
+                closest_hospital = h
+        return closest_hospital, mini
+
 class Hospital:
     def __init__(self,num,x,y):
         self.x = x
@@ -100,6 +136,17 @@ class Hospital:
         #return ("Hospital %s at %s, %s with %s ambulances and %s patients.") %\
         #    (repr(self.num+1), repr(self.x), repr(self.y),\
         #repr(self.ambulances), repr(self.patients))
+
+def path_cost(l):
+    dist = 0
+    for i in range(0,len(l)):
+        cx = int(l[i].split(',')[0])
+        cy = int(l[i].split(',')[1])
+        if i > 0:
+            dist += abs(px-cx) + abs(py-py)
+        px = cx
+        py = cy
+    return dist
 
 if __name__ == "__main__":
 
@@ -220,19 +267,21 @@ if __name__ == "__main__":
         path.append([])
         # fuck python. sometimes.
 
+    scored_p = []
     while len(patients) > 0:
         for a in ambulances:
-            path[a.n].append(a.x)
-            path[a.n].append(a.y)
+            path[a.n].append(repr(a.x) + "," + repr(a.y))
             while a.time < max_ttl:
                 first = True
+                finding = False
                 # estimate the maximum time remaining
                 hosp_dist = a.find_closest_hospital()[1]
                 still_ok = True
                 while len(a.cargo) < 4 and still_ok and len(patients) > 0:
-                    # determine which patient to pick up
-                    low_patient,d = a.find_closest_patient()
-                    # 0 = patient, 1 = distance
+                    if not finding:
+                        # determine which patient to pick up
+                        low_patient,d,scored_p = a.find_closest_patient()
+                        # 0 = patient, 1 = distance, 2 = sorted array
 
                     # should we go back?
                     # if someone is going to die RIGHT NOW if we don't go back...
@@ -248,9 +297,9 @@ if __name__ == "__main__":
 
                     # pick that patient up
                     if still_ok:
+                        finding = False
                         a.move(low_patient.x,low_patient.y) # move the ambulance to the person
-                        path[a.n].append(a.x)
-                        path[a.n].append(a.y)
+                        path[a.n].append(repr(a.x) + "," + repr(a.y))
                         patients.remove(low_patient) # remove the patient from the street
                         low_patient.in_ambulance = True # dibbs!
                         a.cargo.append(low_patient) # add him/her to the ambulance
@@ -259,13 +308,16 @@ if __name__ == "__main__":
                             first = False
                         print low_patient,
                         a.time += 1 # takes 1 minute to load the patient
+                    else:
+                        scored_p.remove(low_patient)
+                        low_patient = scored_p[0]
+                        finding = True
                         
                 # drop patients off
                 h = a.find_closest_hospital()[0]
                 if len(a.cargo) > 0:
                     a.move(h.x,h.y)
-                    path[a.n].append(a.x)
-                    path[a.n].append(a.y)
+                    path[a.n].append(repr(a.x) + "," + repr(a.y))
                 a.time += 1 # unload all patients
                 if len(a.cargo) > 0:
                     print "\nAmbulance %s (%s,%s)" % (repr(a.n),repr(a.x),repr(a.y)) # Ambulance X 
@@ -275,16 +327,6 @@ if __name__ == "__main__":
                     else:
                         total_lost += 1
                 a.cargo = []
-
-        # pseudocode for the simulated annealing algo:
-        #     take an initial route r1
-        #     loop until T is low enough or you have found an answer close to the optimal
-        #         consider a randomly chosen possible change yielding a route r2
-        #     if r2 is lower cose than r1
-        #         replace r1 by r2
-        #         else replace r1 by r2 with probbility
-        #              e^((cost(r1)-cost(r2))/T)
-        #     decrease the temperature T
 
         # find dead patients
         for p in patients:
@@ -298,6 +340,47 @@ if __name__ == "__main__":
                 patients.remove(p)
                 # print "%s is unsaveable." % (repr(p))
         
-#    print "Total saved: ",total_saved
-#    print "Time : ", round(time.time() - start_time,2)
-#    print "Total lost: ",total_lost
+    # pseudocode for the simulated annealing algo:
+    #     take an initial route r1
+    #     loop until T is low enough or you have found an answer close to the optimal
+    #         consider a randomly chosen possible change yielding a route r2
+    #     if r2 is lower cost than r1
+    #         replace r1 by r2
+    #         else replace r1 by r2 with probbility
+    #              e^((cost(r1)-cost(r2))/T)
+    #     decrease the temperature T
+
+    hosp_locs = []
+    for h in hospitals:
+        hosp_locs.append(repr(h.x) + "," + repr(h.y))
+
+    # T = 60
+    # while T > 50:
+    #     for amb_path in path:
+    #         c = path_cost(amb_path)
+    #         t = 0
+    #         for i in amb_path:
+    #             while i not in hosp_locs
+    #             t += 1
+    #         a = random.randint(0,t)
+    #         b = random.randint(0,t)
+    #         t1 = amb_path[a]
+    #         t2 = amb_path[b]
+    #         temp_path = amb_path + []
+    #         if a > b:
+    #             temp_path.insert(t1,b)
+    #             temp_path.remove(t1)
+    #             temp_path.insert(t2,a)
+    #             temp_path.remove(t2)
+    #         elsif a < b:
+    #             temp_path.insert(t1,b)
+    #             temp_path.remove(t1)
+    #             temp_path.insert(t2,a)
+    #             temp_path.remove(t2)
+    #         if path_cost(temp_path) < c:
+    #             amb_path = temp_path
+    #         elsif e^((cost(r1)-cost(r2))/T):
+    #             amb_path = temp_path
+    #     T-=10
+        
+print "Total saved: " + repr(total_saved)
