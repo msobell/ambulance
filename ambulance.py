@@ -159,14 +159,17 @@ if __name__ == "__main__":
     # this is ugly please forgive me
     count = 0
     use_h = hospitals + []
-    print "Hospitals",
-    while count < len(a_save):
+    while count < 5:
         for h in use_h:
             if h.ambulances == a_save[count]:
-                print h,
+                h.number = count
                 count += 1
                 use_h.remove(h)
                 break
+
+    print "Hospitals",
+    for h in hospitals:
+        print h
     print ""
 
     ambulances = []
