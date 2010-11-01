@@ -200,56 +200,69 @@ if __name__ == "__main__":
             # print "%s is unsaveable." % (repr(p))
 
     avg_ttl = 0
+    max_ttl = 0
     for p in patients:
         avg_ttl += p.ttl
+        if max_ttl < p.ttl:
+            max_ttl = p.ttl
     avg_ttl /= len(patients)
     # print "Average time to live: ",avg_ttl
 
+    # find patients under hospitals
+    for p in patients:
+        for h in hospitals:
+            if p.x == h.x and p.y == h.y:
+                patients.remove(p)
+                total_saved += 1
+
     while len(patients) > 0:
         for a in ambulances:
-            first = True
-            # estimate the maximum time remaining
-            hosp_dist = a.find_closest_hospital()[1]
-            still_ok = True
-            while len(a.cargo) < 4 and still_ok and len(patients) > 0:
-                # determine which patient to pick up
-                low_patient,d = a.find_closest_patient()
-                # 0 = patient, 1 = distance
+            while a.time < max_ttl:
+                first = True
+                # estimate the maximum time remaining
+                hosp_dist = a.find_closest_hospital()[1]
+                still_ok = True
+                while len(a.cargo) < 4 and still_ok and len(patients) > 0:
+                    # determine which patient to pick up
+                    low_patient,d = a.find_closest_patient()
+                    # 0 = patient, 1 = distance
 
-                # should we go back?
-                # if someone is going to die RIGHT NOW if we don't go back...
-                # LOGIC: lowest time to live is still greater than the time it takes to
-                # pick up the next patient and drive to the nearest hospital
-                # this logic is OK because the path from the patient to the hospital
-                # is always less than the ambulance to the hospital PLUS the ambulance to the
-                # patient. Phew.
+                    # should we go back?
+                    # if someone is going to die RIGHT NOW if we don't go back...
+                    # LOGIC: lowest time to live is still greater than the time it takes to
+                    # pick up the next patient and drive to the nearest hospital
+                    # this logic is OK because the path from the patient to the hospital
+                    # is always less than the ambulance to the hospital PLUS the ambulance to the
+                    # patient. Phew.
+                    if len(a.cargo) > 0:
+                        still_ok = min([p.ttl for p in a.cargo]) > a.find_closest_hospital()[1] + d + 2 + a.time
+                    else:
+                        still_ok = low_patient.ttl > a.find_closest_hospital()[1] + d + 2 + a.time
+
+                    # pick that patient up
+                    if still_ok:
+                        a.move(low_patient.x,low_patient.y) # move the ambulance to the person
+                        patients.remove(low_patient) # remove the patient from the street
+                        low_patient.in_ambulance = True # dibbs!
+                        a.cargo.append(low_patient) # add him/her to the ambulance
+                        if first:
+                            print "Ambulance",a.n, # Ambulance X
+                            first = False
+                        print low_patient,
+                        a.time += 1 # takes 1 minute to load the patient
+
+                # drop patients off
+                h = a.find_closest_hospital()[0]
+                a.move(h.x,h.y)
+                a.time += 1 # unload all patients
                 if len(a.cargo) > 0:
-                    still_ok = (min([p.ttl for p in a.cargo])-2-a.time) > a.find_closest_hospital()[1] + d
-                
-                # pick that patient up
-                if still_ok:
-                    a.move(low_patient.x,low_patient.y) # move the ambulance to the person
-                    patients.remove(low_patient) # remove the patient from the street
-                    low_patient.in_ambulance = True # dibbs!
-                    a.cargo.append(low_patient) # add him/her to the ambulance
-                    if first:
-                        print "Ambulance",a.n, # Ambulance X
-                        first = False
-                    print low_patient,
-                    a.time += 1 # takes 1 minute to load the patient
-                
-            # drop patients off
-            h = a.find_closest_hospital()[0]
-            a.move(h.x,h.y)
-            a.time += 1 # unload all patients
-            if len(a.cargo) > 0:
-                print "\nAmbulance %s (%s,%s)" % (repr(a.n),repr(a.x),repr(a.y)) # Ambulance X 
-            for r in a.cargo:
-                if r.ttl > a.time:
-                    total_saved += 1
-                else:
-                    total_lost += 1
-            a.cargo = []
+                    print "\nAmbulance %s (%s,%s)" % (repr(a.n),repr(a.x),repr(a.y)) # Ambulance X 
+                for r in a.cargo:
+                    if r.ttl > a.time:
+                        total_saved += 1
+                    else:
+                        total_lost += 1
+                a.cargo = []
 
         # find dead patients
         for p in patients:
