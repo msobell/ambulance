@@ -215,8 +215,15 @@ if __name__ == "__main__":
                 patients.remove(p)
                 total_saved += 1
 
+    path = []
+    for i in range(len(ambulances)):
+        path.append([])
+        # fuck python. sometimes.
+
     while len(patients) > 0:
         for a in ambulances:
+            path[a.n].append(a.x)
+            path[a.n].append(a.y)
             while a.time < max_ttl:
                 first = True
                 # estimate the maximum time remaining
@@ -242,6 +249,8 @@ if __name__ == "__main__":
                     # pick that patient up
                     if still_ok:
                         a.move(low_patient.x,low_patient.y) # move the ambulance to the person
+                        path[a.n].append(a.x)
+                        path[a.n].append(a.y)
                         patients.remove(low_patient) # remove the patient from the street
                         low_patient.in_ambulance = True # dibbs!
                         a.cargo.append(low_patient) # add him/her to the ambulance
@@ -250,10 +259,13 @@ if __name__ == "__main__":
                             first = False
                         print low_patient,
                         a.time += 1 # takes 1 minute to load the patient
-
+                        
                 # drop patients off
                 h = a.find_closest_hospital()[0]
-                a.move(h.x,h.y)
+                if len(a.cargo) > 0:
+                    a.move(h.x,h.y)
+                    path[a.n].append(a.x)
+                    path[a.n].append(a.y)
                 a.time += 1 # unload all patients
                 if len(a.cargo) > 0:
                     print "\nAmbulance %s (%s,%s)" % (repr(a.n),repr(a.x),repr(a.y)) # Ambulance X 
@@ -263,6 +275,16 @@ if __name__ == "__main__":
                     else:
                         total_lost += 1
                 a.cargo = []
+
+        # pseudocode for the simulated annealing algo:
+        #     take an initial route r1
+        #     loop until T is low enough or you have found an answer close to the optimal
+        #         consider a randomly chosen possible change yielding a route r2
+        #     if r2 is lower cose than r1
+        #         replace r1 by r2
+        #         else replace r1 by r2 with probbility
+        #              e^((cost(r1)-cost(r2))/T)
+        #     decrease the temperature T
 
         # find dead patients
         for p in patients:
