@@ -162,14 +162,15 @@ if __name__ == "__main__":
     while count < 5:
         for h in use_h:
             if h.ambulances == a_save[count]:
-                h.number = count
+                h.num = count
                 count += 1
                 use_h.remove(h)
                 break
 
+    hospitals = sorted(hospitals, key=lambda Hospital: Hospital.num)    
     print "Hospitals",
     for h in hospitals:
-        print h
+        print h,
     print ""
 
     ambulances = []
