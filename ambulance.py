@@ -137,6 +137,16 @@ class Hospital:
         #    (repr(self.num+1), repr(self.x), repr(self.y),\
         #repr(self.ambulances), repr(self.patients))
 
+    def find_closest_patient(self):
+        closest_patient = patients[0]
+        mini = 10000
+        for p in patients:
+            d = abs(self.x - p.x) + abs(self.y - p.y)
+            if d < mini:
+                mini = d
+                closest_patient = p
+        return closest_patient
+
 def path_cost(l):
     dist = 0
     for i in range(0,len(l)):
@@ -185,6 +195,12 @@ if __name__ == "__main__":
     for c in clusts[0].tolist():
         hospitals.append(Hospital(i,c[0],c[1]))
         i += 1
+
+    for h in hospitals:
+        # move -- poor man's k-medoids
+        c = h.find_closest_patient()
+        h.x = c.x
+        h.y = c.y
 
     # figure out how many patients in each cluster
     for p in patients:
